@@ -218,6 +218,22 @@ User.hasMany(Invite, {
   as: 'sentInvites'
 });
 
+// Add this association
+Jurisdiction.hasMany(UserJurisdiction, {
+  foreignKey: 'JurisdictionID',
+  as: 'userJurisdictions'
+});
+
+UserJurisdiction.belongsTo(User, {
+  foreignKey: 'UserID',
+  as: 'user'
+});
+
+UserJurisdiction.belongsTo(Jurisdiction, {
+  foreignKey: 'JurisdictionID',
+  as: 'jurisdiction'
+});
+
 // Export all models and the sequelize instance
 module.exports = {
   sequelize,

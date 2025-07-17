@@ -80,6 +80,11 @@ const User = sequelize.define('User', {
       model: Role, // Reference the Role model object
       key: 'id'
     }
+  },
+  abn: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'ABN'
   }
 }, {
   tableName: 'Users',

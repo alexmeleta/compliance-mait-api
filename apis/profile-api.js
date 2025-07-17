@@ -4,6 +4,7 @@ const { User } = require('../models');
 const { Op } = require('sequelize');
 const Role = require('../models/Role');
 const UserAvatar = require('../models/UserAvatar');
+const Jurisdiction = require('../models/Jurisdiction');
 const UserJurisdiction = require('../models/UserJurisdiction');
 const UserName = require('../models/UserName');
 const { authGuard, ownerGuard, requirePermissions } = require('../middleware/auth');
@@ -288,7 +289,12 @@ router.get('/me', authGuard, async (req, res) => {
         {
           model: UserJurisdiction,
           as: 'userJurisdictions',
-          attributes: ['JurisdictionID']
+          include: [{
+            model: Jurisdiction,
+            as: 'jurisdiction',  // This should match the alias in UserJurisdiction.associate
+            attributes: ['id', 'name'],
+            required: false
+          }]
         },
         {
           model: UserName,
@@ -303,6 +309,9 @@ router.get('/me', authGuard, async (req, res) => {
     }
 
     const plainUser = user.get({ plain: true });
+
+    const userJurisdictions = plainUser.userJurisdictions;
+
     const response = {
       id: plainUser.id,
       email: plainUser.email,
@@ -318,8 +327,12 @@ router.get('/me', authGuard, async (req, res) => {
       avatarId: plainUser.avatar ? plainUser.avatar.id : null,
       createdAt: plainUser.createdAt,
       updatedAt: plainUser.updatedAt,
-      userJurisdictions: plainUser.userJurisdictions,
-      alternateNames: plainUser.alternateNames
+      jurisdictions: plainUser.userJurisdictions.map(uj => ({
+        id: uj.jurisdiction.id,
+        name: uj.jurisdiction.name
+      })),
+      abn: plainUser.abn,
+      alternativeNames: plainUser.alternateNames.map(name => name.FullName)
     };
 
     res.json(response);
@@ -500,7 +513,8 @@ router.post('/',
       address: address || null,
       dateOfBirth: dateOfBirth || null,
       roleId: req.userRecord.roleId || null,
-      passwordHash: passwordHash // Note: In production, hash the password!
+      passwordHash: passwordHash,
+      abn: abn || null
     });
 
     // Fetch role name if roleId is provided
@@ -527,7 +541,8 @@ router.post('/',
         createdAt: newUser.createdAt,
         updatedAt: newUser.updatedAt,
         roleName: roleName,
-        isAvailableForWork: newUser.isAvailableForWork
+        isAvailableForWork: newUser.isAvailableForWork,
+        abn: newUser.abn
       }
     });
   } catch (err) {
@@ -598,7 +613,9 @@ router.put('/:email',
       roleId,
       dateOfBirth,
       isActive,
-      isAvailableForWork
+      isAvailableForWork,
+      alternativeNames,
+      abn
     } = req.body;
     
     try {
@@ -607,7 +624,24 @@ router.put('/:email',
         where: {
           email,
           isDeleted: false
-        }
+        },
+        include: [
+          {
+            model: Role,
+            as: 'role',
+            attributes: ['name']
+          },
+          {
+            model: UserJurisdiction,
+            as: 'userJurisdictions',
+            attributes: ['JurisdictionID']
+          },
+          {
+            model: UserName,
+            as: 'alternateNames',
+            attributes: ['FullName']
+          }
+        ]
       });
       
       if (!user) {
@@ -628,8 +662,38 @@ router.put('/:email',
         address: address || user.address,
         roleId: roleId || user.roleId,
         dateOfBirth: dateOfBirth || user.dateOfBirth,
-        isAvailableForWork: isAvailableForWork
+        isAvailableForWork: isAvailableForWork,
+        abn: abn || user.abn,
+        //isActive: isActive || user.isActive
       });
+
+      // Get current alternative names
+      const currentAlternativeNames = await user.getAlternateNames();
+      const currentNames = currentAlternativeNames.map(name => name.FullName);
+      const newNames = alternativeNames || [];
+
+      // Find names to add (in newNames but not in currentNames)
+      const namesToAdd = newNames.filter(name => !currentNames.includes(name));
+      
+      // Find names to remove (in currentNames but not in newNames)
+      const namesToRemove = currentAlternativeNames
+        .filter(name => !newNames.includes(name.FullName))
+        .map(name => name.ID);
+
+      // Perform the necessary operations
+      if (namesToRemove.length > 0) {
+        console.log(namesToRemove);
+        await UserName.destroy({ where: { ID: namesToRemove } });
+      }
+      
+      if (namesToAdd.length > 0) {
+        await UserName.bulkCreate(
+          namesToAdd.map(name => ({
+            UserID: user.id,
+            FullName: name
+          }))
+        );
+      }
 
       // Fetch role name if roleId is provided or already exists
       let roleName = null;
@@ -654,7 +718,8 @@ router.put('/:email',
           updatedAt: user.updatedAt,
           roleId: user.roleId,
           isAvailableForWork: user.isAvailableForWork,
-          roleName: roleName
+          roleName: roleName,
+          abn: user.abn
         }
       });
     } catch (err) {

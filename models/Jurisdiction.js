@@ -36,4 +36,6 @@ const Jurisdiction = sequelize.define('Jurisdiction', {
   timestamps: false
 });
 
+
+
 module.exports = Jurisdiction;

@@ -1,6 +1,9 @@
+// In models/UserJurisdiction.js
 'use strict';
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
+const User = require('./User');
+const Jurisdiction = require('./Jurisdiction');
 
 const UserJurisdiction = sequelize.define('UserJurisdiction', {
   UserID: {
@@ -28,18 +31,5 @@ const UserJurisdiction = sequelize.define('UserJurisdiction', {
   timestamps: false,
   underscored: false
 });
-
-// Define associations in a separate block
-UserJurisdiction.associate = (models) => {
-  UserJurisdiction.belongsTo(models.User, {
-    foreignKey: 'UserID',
-    as: 'user'
-  });
-  
-  UserJurisdiction.belongsTo(models.Jurisdiction, {
-    foreignKey: 'JurisdictionID',
-    as: 'jurisdiction'
-  });
-};
 
 module.exports = UserJurisdiction;
