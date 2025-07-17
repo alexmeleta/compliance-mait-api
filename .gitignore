@@ -1,0 +1,7 @@
+node_modules/**
+package-lock.json
+uploads/*
+.env.development
+.env.production
+.env.test
+exoborne-maps-6c23d7e644c1.json

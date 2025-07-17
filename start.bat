@@ -1,0 +1,3 @@
+set GOOGLE_VISION_API_KEY=AIzaSyAo-L2tvjg-l1PSES4iX3LBOITrTglhJuU
+set GOOGLE_APPLICATION_CREDENTIALS=exoborne-maps-6c23d7e644c1.json
+node server.js
