@@ -1,3 +1,78 @@
+// At the very top of server.js, before any other requires
+const winston = require('winston');
+const { format, transports } = winston;
+const { combine, timestamp, printf, colorize, json } = format;
+
+// Create a custom format for console output
+const consoleFormat = printf(({ level, message, timestamp, ...meta }) => {
+    return `${timestamp} [${level}]: ${message} ${
+        Object.keys(meta).length ? JSON.stringify(meta, null, 2) : ''
+    }`;
+});
+
+// Create a logger instance
+const logger = winston.createLogger({
+    level: 'info',
+    format: combine(
+        timestamp({
+            format: 'YYYY-MM-DD HH:mm:ss'
+        }),
+        json()
+    ),
+    defaultMeta: { service: 'compliance-mait-service' },
+    transports: [
+        // Write all logs with level `error` and below to `error.log`
+        new transports.File({ 
+            filename: 'logs/error.log', 
+            level: 'error' 
+        }),
+        // Write all logs to `combined.log`
+        new transports.File({ 
+            filename: 'logs/combined.log' 
+        })
+    ]
+});
+
+// If we're not in production, also log to the console with colorization
+if (process.env.NODE_ENV !== 'production') {
+    logger.add(new transports.Console({
+        format: combine(
+            colorize(),
+            timestamp({
+                format: 'YYYY-MM-DD HH:mm:ss'
+            }),
+            consoleFormat
+        )
+    }));
+}
+
+// Override console methods
+console.log = function() {
+    const args = Array.from(arguments);
+    logger.info(args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
+    ).join(' '));
+};
+
+console.error = function() {
+    const args = Array.from(arguments);
+    logger.error(args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
+    ).join(' '));
+};
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception:', error);
+    // Consider proper error handling and graceful shutdown
+    process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 const express = require('express');
 const cors = require('cors'); 
 const config = require('./config/config');
@@ -7,6 +82,8 @@ const swaggerSpec = require('./config/swagger');
 
 const app = express();
 const port = config.server.port;
+
+
 
 // Apply CORS settings from config
 app.use(cors(config.cors));
