@@ -81,8 +81,8 @@ class UserService {
       };
     } catch (err) {
       // Rollback the transaction in case of error
-      await transaction.rollback();
       console.error('Registration error:', err);
+      await transaction.rollback();
       throw err;
     }
   }

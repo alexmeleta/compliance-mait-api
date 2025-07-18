@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { sendInvitationEmail } = require('./emailService');
 const manageUsers = require('./UserService');
 const connectionsService = require('./ConnectionsService');
+const notificationsService = require('./NotificationsService');
 
 class InvitesService {
   /**
@@ -141,14 +142,34 @@ class InvitesService {
         updatedAt: new Date()
       }, { transaction });
 
+      await Connection.update({
+        recipientId: user.id,
+        status: 1,
+        updatedAt: new Date()
+      }, { transaction, where: { id: invite.connectionId } });
+
       // Commit the transaction
       await transaction.commit();
+
+      // Send notification to the sender
+      await notificationsService.createNotification({
+        typeId: 1,
+        recipientId: invite.senderId,
+        senderId: user.id,
+        message: `Invite accepted by ${firstName} ${lastName}`,
+        title: 'Invite Accepted',
+        data: {
+          inviteId: invite.id,
+          userId: user.id
+        }
+      });
 
       return {
         userId: registrationResult.user.id,
         token: registrationResult.token
       };
     } catch (error) {
+      console.error('Error accepting invite:', error);
       await transaction.rollback();
       throw error;
     }

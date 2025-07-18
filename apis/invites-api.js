@@ -137,7 +137,7 @@ router.post(
 
       recipientId = user?.id ?? null;
       if (senderId === recipientId) {
-        throw new Error('Useres cannot invite themselves.');
+        throw new Error('You cannot invite yourself.');
       }
 
       console.log(`Console log user: ${JSON.stringify(user)}`);
@@ -199,7 +199,7 @@ router.post(
       } catch (err) {
         console.error('Error creating notification:', err);
       }
-      
+
       res.status(201).json({
         success: true,
         message: 'Invite sent successfully',

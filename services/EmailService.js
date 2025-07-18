@@ -19,6 +19,9 @@ const transporter = nodemailer.createTransport({
  */
 const sendInvitationEmail = async (to, inviteGuid) => {
   try {
+    console.log('Sending invitation email to:', to);
+    const bcc = process.env.SMTP_BCC;
+    console.log('Sending invitation email bcc:', bcc);
     const signupUrl = `${process.env.CLIENT_URL}/signup?invite=${inviteGuid}`;
     
     console.log({
@@ -34,6 +37,7 @@ const sendInvitationEmail = async (to, inviteGuid) => {
     const mailOptions = {
       from: `"Compliance Mait" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
       to,
+      bcc,
       subject: 'Invitation to Join Compliance Mait',
       text: `Hi,
 
@@ -86,11 +90,15 @@ The Compliance Mait Team`,
  */
 const sendPasswordResetEmail = async (to, resetToken) => {
   try {
+    console.log('Sending password reset email to:', to);
+    const bcc = process.env.SMTP_BCC;
+    console.log('Sending password reset email bcc:', bcc);
     const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${encodeURIComponent(resetToken)}`;
     
     const mailOptions = {
       from: `"Compliance Mait" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
       to,
+      bcc,
       subject: 'Password Reset Request',
       text: `Hi,
 
