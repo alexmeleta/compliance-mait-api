@@ -109,8 +109,6 @@ const { Op } = require('sequelize');
  *                   $ref: '#/components/schemas/Invite'
  *       400:
  *         description: Validation error or user already invited
- *       401:
- *         description: Unauthorized
  *       500:
  *         description: Server error
  */
@@ -137,7 +135,7 @@ router.post(
         }
       });
 
-      recipientId = user.id;
+      recipientId = user?.id ?? null;
       if (senderId === recipientId) {
         throw new Error('Useres cannot invite themselves.');
       }
@@ -189,14 +187,19 @@ router.post(
         }
       }
 
-      await notificationsService.createNotification({
-        recipientId: senderId,
-        typeId: 1,
-        message: `You have invited ${email}`,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
+      try {
+        await notificationsService.createNotification({
+          recipientId: senderId,
+          senderId: senderId,
+          typeId: 1,
+          message: `You have invited ${email}`,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      } catch (err) {
+        console.error('Error creating notification:', err);
+      }
+      
       res.status(201).json({
         success: true,
         message: 'Invite sent successfully',
