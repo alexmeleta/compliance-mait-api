@@ -112,6 +112,16 @@ router.use(express.json());
  *               format: password
  *               minLength: 8
  *               description: User's password (required for new users)
+ *             alternativeNames:
+ *               type: array
+ *               items:
+ *                 type: string
+ *             abn:
+ *               type: string
+ *             jurisdictions:
+ *               type: array
+ *               items:
+ *                 type: integer
  *
  *     ProfileUpdateRequest:
  *       type: object
@@ -144,6 +154,16 @@ router.use(express.json());
  *         roleId:
  *           type: integer
  *           description: The role ID for the user
+ *         alternativeNames:
+ *           type: array
+ *           items:
+ *             type: string
+ *         abn:
+ *           type: string
+ *         jurisdictions:
+ *           type: array
+ *           items:
+ *             type: integer
  */
 
 /**
@@ -197,7 +217,8 @@ router.get('/',
         'createdAt', 
         'updatedAt',
         'roleId',
-        'isAvailableForWork'
+        'isAvailableForWork',
+        'alternativeNames'
       ],
       include: [
         {

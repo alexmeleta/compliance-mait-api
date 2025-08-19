@@ -17,6 +17,7 @@ const Invite = require('./Invite');
 const UserAvatar = require('./UserAvatar');
 const UserJurisdiction = require('./UserJurisdiction');
 const UserName = require('./UserName');
+const LcrType = require('./LcrType');
 
 // Add model associations
 Country.hasMany(State, {
@@ -254,5 +255,6 @@ module.exports = {
   Invite,
   UserAvatar,
   UserJurisdiction,
-  UserName
+  UserName,
+  LcrType
 };

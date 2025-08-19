@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Certificate, Jurisdiction, Country, State, File, CertificateFile } = require('../models');
+const { Certificate, Jurisdiction, Country, State, File, CertificateFile, LcrType } = require('../models');
 const { Op } = require('sequelize');
 const { authGuard, ownerGuard, requirePermissions } = require('../middleware/auth');
 
@@ -152,6 +152,10 @@ router.use(express.json());
  *           nullable: true
  *           example: 1
  *           description: The jurisdiction ID associated with the certificate
+ *         lcrTypeId:
+ *           type: integer
+ *           example: 1
+ *           description: The LCR Type ID associated with the certificate
  *         renewalFrequency:
  *           type: integer
  *           minimum: 1
@@ -165,6 +169,7 @@ router.use(express.json());
  *         - type: object
  *           required:
  *             - fileIds
+ *             - lcrTypeId
  *           properties:
  *             fileIds:
  *               type: array
@@ -210,6 +215,10 @@ router.use(express.json());
  *               description: Files associated with the certificate
  *             jurisdiction:
  *               $ref: '#/components/schemas/Jurisdiction'
+ *             lcrTypeId:
+ *               type: integer
+ *               example: 1
+ *               description: The LCR Type ID associated with the certificate
  *             createdAt:
  *               type: string
  *               format: date-time
@@ -285,6 +294,79 @@ router.get('/',
         }
       ]
     });
+    res.json(certificates);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Database error', error: err.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/certificates/active:
+ *   get:
+ *     summary: Get active (non-expired) certificates for the authenticated user
+ *     tags: [Certificates]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of active certificates
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/CertificateResponse'
+ *       500:
+ *         description: Server error
+ */
+router.get('/active',
+  authGuard,
+  async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const today = new Date().toISOString().split('T')[0];
+
+    const certificates = await Certificate.findAll({
+      where: {
+        isDeleted: false,
+        userId: userId,
+        [Op.or]: [
+          { expiryDate: null },
+          { expiryDate: { [Op.gte]: today } }
+        ]
+      },
+      include: [
+        {
+          model: Jurisdiction,
+          as: 'jurisdiction',
+          attributes: ['id', 'name'],
+          include: [
+            {
+              model: Country,
+              as: 'country',
+              attributes: ['countryCode', 'countryName']
+            },
+            {
+              model: State,
+              as: 'state',
+              attributes: ['id', 'name']
+            }
+          ]
+        },
+        {
+          model: File,
+          as: 'files',
+          attributes: ['id', 'title', 'guid', 'mimeType'],
+          through: {
+            attributes: [],
+            where: { isDeleted: false }
+          }
+        }
+      ]
+    });
+
     res.json(certificates);
   } catch (err) {
     console.error(err);
@@ -411,11 +493,16 @@ router.post('/',
     issuedBy, 
     issuingAuthority, 
     jurisdictionId, 
-    renewalFrequency 
+    renewalFrequency,
+    lcrTypeId
   } = req.body;
 
   if (!title) {
     return res.status(400).json({ message: 'Title is required' });
+  }
+
+  if (lcrTypeId === undefined || lcrTypeId === null) {
+    return res.status(400).json({ message: 'lcrTypeId is required' });
   }
 
   try {
@@ -425,6 +512,12 @@ router.post('/',
       if (!jurisdiction) {
         return res.status(404).json({ message: 'Jurisdiction not found' });
       }
+    }
+
+    // Check if LcrType exists
+    const lcrType = await LcrType.findByPk(lcrTypeId);
+    if (!lcrType) {
+      return res.status(404).json({ message: 'LCR Type not found' });
     }
 
     const newCertificate = await Certificate.create({
@@ -438,6 +531,7 @@ router.post('/',
       issuingAuthority,
       jurisdictionId,
       renewalFrequency,
+      lcrTypeId,
       isDeleted: false,
       userId: req.user.userId
     });
@@ -533,7 +627,8 @@ router.put('/:id', async (req, res) => {
     issuedBy, 
     issuingAuthority, 
     jurisdictionId, 
-    renewalFrequency 
+    renewalFrequency,
+    lcrTypeId
   } = req.body;
 
   try {
@@ -556,6 +651,14 @@ router.put('/:id', async (req, res) => {
       }
     }
 
+    // Check if LcrType exists if lcrTypeId is provided
+    if (lcrTypeId !== undefined) {
+      const lcrType = await LcrType.findByPk(lcrTypeId);
+      if (!lcrType) {
+        return res.status(404).json({ message: 'LCR Type not found' });
+      }
+    }
+
     // Update certificate
     await certificate.update({
       title: title || certificate.title,
@@ -567,7 +670,8 @@ router.put('/:id', async (req, res) => {
       issuedBy: issuedBy !== undefined ? issuedBy : certificate.issuedBy,
       issuingAuthority: issuingAuthority !== undefined ? issuingAuthority : certificate.issuingAuthority,
       jurisdictionId: jurisdictionId !== undefined ? jurisdictionId : certificate.jurisdictionId,
-      renewalFrequency: renewalFrequency !== undefined ? renewalFrequency : certificate.renewalFrequency
+      renewalFrequency: renewalFrequency !== undefined ? renewalFrequency : certificate.renewalFrequency,
+      lcrTypeId: lcrTypeId !== undefined ? lcrTypeId : certificate.lcrTypeId
     });
 
     // Fetch the updated certificate with jurisdiction details

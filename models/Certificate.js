@@ -77,6 +77,15 @@ const Certificate = sequelize.define('Certificate', {
     allowNull: true,
     field: 'RenewalFrequency'
   },
+  lcrTypeId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    field: 'LcrTypeId',
+    references: {
+      model: 'LcrTypes',
+      key: 'ID'
+    }
+  },
   isDeleted: {
     type: DataTypes.BOOLEAN,
     defaultValue: false,

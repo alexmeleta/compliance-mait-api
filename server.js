@@ -116,6 +116,7 @@ const roleApi = require('./apis/role-api');
 const scanApi = require('./apis/scan-api').router;
 const fileApi = require('./apis/file-api');
 const inviteApi = require('./apis/invites-api');
+const lcrTypeApi = require('./apis/lcrtype-api');
 
 app.use('/api/profiles', profileApi);
 app.use('/api/profiles', profileAvatarApi); 
@@ -128,6 +129,7 @@ app.use('/api/notifications', notificationApi);
 app.use('/api/auth', authApi);
 app.use('/api/roles', roleApi);
 app.use('/api/invites', inviteApi);
+app.use('/api/lcrtypes', lcrTypeApi);
 app.use('/api', scanApi);
 app.use('/api/files', fileApi);
 
